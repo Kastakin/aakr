@@ -176,10 +176,8 @@ class AAKR(TransformerMixin, BaseEstimator):
 
         # Modified AAKR basically sorts the columns
         # TODO: Needs to be verified that everything here is correct
+        X_obs_nc = self.X_
         if self.modified:
-            X_obs_nc = self.X_
-            X_nc = np.zeros(X.shape)
-
             # Penalty matrix (J x J, where J is the number of features)
             if self.penalty is None:
                 D = np.diag(np.arange(X.shape[1]) + 1) ** 2.0
@@ -187,30 +185,47 @@ class AAKR(TransformerMixin, BaseEstimator):
             else:
                 D = np.diag(self.penalty).astype("float")
 
-            for i, X_obs in enumerate(X):  # TODO: Vectorize
-                # Standardized contributions in decreasing order (J, 1)
-                diff = (np.abs(X_obs - X_obs_nc) / X_obs_nc.std(0)).sum(0)
-                order = diff.argsort()[::-1]
+            # Standardized contributions in decreasing order for each new obs (N_obs, J)
+            diff = (
+                (
+                    np.abs(
+                        X_obs_nc
+                        - X[:, np.newaxis, :].repeat(X_obs_nc.shape[0], axis=-2)
+                    )
+                )
+                / X_obs_nc.std(0)
+            ).sum(1)
+            order = diff.argsort()[::-1]
 
-                # Historical examples with ordered signals and penalty applied
-                # (N_obs_nc x J)
-                row_selector = np.arange(len(X_obs_nc))[:, np.newaxis]
-                X_obs_nc_new = X_obs_nc[row_selector, order].dot(D)
+            # Historical examples with ordered signals and penalty applied
+            # (N_obs x N_obs_nc x J)
+            X_obs_nc_new = np.stack(
+                tuple(X_obs_nc[:, order_i].dot(D) for i, order_i in enumerate(order))
+            )
 
-                # New observations with ordered features and penalty applied
-                # (1 x J)
-                X_obs_new = X_obs[order].dot(D)[np.newaxis, :]
+            # New observations with ordered features and penalty applied
+            # (N_obs x J)
+            X_obs_new = np.stack(
+                tuple(X[i, order_i].dot(D) for i, order_i in enumerate(order))
+            )
 
-                # Weights for each observation (N_obs_nc, 1)
-                w = self._rbf_kernel(X_obs_nc_new, X_obs_new)
+            # Weights for each observation (N_obs_nc x N_obs)
+            w = np.stack(
+                tuple(
+                    self._rbf_kernel(X_obs_nc_new[i], [X_obs_new_i])[:, 0]
+                    for i, X_obs_new_i in enumerate(X_obs_new)
+                ),
+                axis=1,
+            )
 
-                # Apply kernel and save the results (1, J)
-                w_sum = w.sum(0)
-                w_div = np.where(w_sum == 0, 1, w_sum)[:, np.newaxis]
+            # Apply kernel and save the results
+            w_sum = w.sum(0)
+            w_div = np.where(w_sum == 0, 1, w_sum)[:, np.newaxis]
 
-                X_nc[i, :] = w.T.dot(X_obs_nc) / w_div
+            X_nc = w.T.dot(X_obs_nc) / w_div
         else:
-            w = self._rbf_kernel(self.X_, X)
+
+            w = self._rbf_kernel(X_obs_nc, X)
             w_sum = w.sum(0)
             w_div = np.where(w_sum == 0, 1, w_sum)[:, np.newaxis]
 
