@@ -19,7 +19,6 @@ def data():
 
 
 def test_default_aakr(data):
-    X = data[0]
     aakr = AAKR()
     assert aakr.metric == "euclidean"
     assert aakr.bw == 1
@@ -71,13 +70,13 @@ def test_aakr_modified(data):
     X = data[0]
 
     # Modified, no penalty given
-    aakr = AAKR(modified=True, penalty=None)
+    aakr = AAKR(bw=0.01, modified=True, penalty=None)
     X_nc = aakr.fit(X).transform(X[:3])
     assert hasattr(aakr, "X_")
     assert_allclose(X_nc, X[:3], atol=1.0)
 
     # Modified, penalty given
-    aakr = AAKR(modified=True, penalty=[1] * X.shape[1])
+    aakr = AAKR(bw=0.01, modified=True, penalty=[1] * X.shape[1])
     X_nc = aakr.fit(X).transform(X[:3])
     assert hasattr(aakr, "X_")
     assert_allclose(X_nc, X[:3], atol=1.0)
