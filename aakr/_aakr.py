@@ -38,7 +38,7 @@ class AAKR(TransformerMixin, BaseEstimator):
     ----------
     .. [1] Chevalier  R., Provost  D., and Seraoui R., 2009,
            “Assessment of Statistical and Classification Models For Monitoring
-           EDF’s  Assets”,  Sixth  American  Nuclear  Society  International
+           EDF's  Assets”,  Sixth  American  Nuclear  Society  International
            Topical Meeting on Nuclear Plant Instrumentation.
     .. [2] Baraldi P., Di Maio F., Turati P., Zio E., 2014,
            "A modified Auto Associative Kernel Regression method for robust
